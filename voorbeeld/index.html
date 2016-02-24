@@ -1,0 +1,340 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>CORA &amp; MOOR</title>
+    <style type="text/css">
+        body{
+            font-family: Arial, Helvetica, Verdana;
+            font-size: 12px;
+        }
+        
+        h1, h2{
+            margin: 0px;
+        }
+
+        #map{
+            position: absolute;
+            left: 0px;
+            right: 0px;
+            bottom: 100px;
+            top: 0px;
+        }
+        #info {
+            background: white;
+            width: 380px;
+            position: absolute;
+            right: 40px;
+            top: 40px;
+            padding: 10px;
+            display: none;
+        }
+        
+        #info div.close{
+            float: right;
+            padding: 2px 5px;
+            background: red;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        #timeline{
+            position: absolute;
+            left: 0px;
+            right: 0px;
+            height: 80px;
+            bottom: 0px;
+            background: white;
+            padding: 10px;
+        }
+        
+        #slider{
+            margin: 5px;
+            height: 10px;
+        }
+        
+        #details table{
+            margin-top: 10px;
+            font-size: 10px;
+        }
+        
+        #details table td{
+            vertical-align: top;
+        }
+        
+        a.toggle{
+            color: blue;
+            cursor: pointer;
+        }
+        
+    </style>
+    
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
+    <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false&libraries=geometry"></script>
+    <script src="//code.jquery.com/jquery-1.9.1.js"></script>
+    <script src="//code.jquery.com/ui/1.10.4/jquery-ui.js"></script>    
+    <script type="text/javascript" src="GeoJSON2.js"></script>
+    <script type="text/javascript">
+        var map;
+        var CORA = new Array();
+        var MOOR = new Array();
+        var features = new Array();
+        var minDate = null, maxDate = null;
+        
+        var MOORloaded = false;
+        var CORAloaded = false;
+        
+        var MOORStyle = {
+            strokeColor: "#FF8000",
+            strokeOpacity: 1,
+            strokeWeight: 2,
+            fillColor: "#464646",
+            fillOpacity: 0.25,
+            icon: "img/marker-orange.png"
+        };
+
+        
+        var CORAStyle = {
+            strokeColor: "#0000FF",
+            strokeOpacity: 1,
+            strokeWeight: 2,
+            fillColor: "#464646",
+            fillOpacity: 0.25,
+            icon: "img/marker-blue.png"
+        };
+        
+        function init(){
+            map = new google.maps.Map(document.getElementById('map'),{
+                zoom: 12,
+                center: new google.maps.LatLng(52.378224, 4.899917),
+                mapTypeId: google.maps.MapTypeId.ROADMAP
+            });
+        }
+        
+        function addToFeatures(geojson, type, style, id, start, end){
+            var feature = new Object();
+            feature.type = type;
+            feature.start = start;
+            feature.end = end;
+            feature.properties = geojson.properties;
+            feature.elements = new Array();
+            features[id] = feature;
+            addToMap(geojson, style, id);
+            
+            if(!minDate || start < minDate) minDate = start;
+            if(!maxDate || end > maxDate) maxDate = end;
+        }
+        
+        function addToMap(geojson, style, id){
+            e = new GeoJSON(geojson, style || null);
+            if (e.type && e.type == "Error"){
+                return;
+            }            
+            if (e.length){
+                for (var i = 0; i < e.length; i++){
+                    if(e[i].length){
+                        for(var j = 0; j < e[i].length; j++){
+                            e[i][j].setMap(map); 
+                            google.maps.event.addListener(e[i][j], "click", function(event) {showProperties(id);});
+                            features[id].elements.push(e[i][j]);
+                        }
+                    } else {
+                        e[i].setMap(map);
+                        google.maps.event.addListener(e[i], "click", function(event) { showProperties(id);});
+                        features[id].elements.push(e[i]);
+                    }
+                }
+            } else {
+                e.setMap(map);
+                google.maps.event.addListener(e, "click", function(event) { showProperties(id);});
+                features[id].elements.push(e);
+            }
+        }
+        
+        function showProperties(id){
+            p = features[id].properties;
+            var content = "<div class='close' onClick='$(\"#info\").hide();'>x</div>";
+            if(features[id].type == "MOOR"){
+                content += "<h2>MOOR-opbreking</h2>";
+                content += "<i>" + features[id].properties["Address"] + "</i>";
+                content += "<p><strong>Van " + features[id].start.toLocaleDateString() + " " + features[id].start.toLocaleTimeString() + " t/m " +  features[id].end.toLocaleDateString() + " " + features[id].end.toLocaleTimeString() + "</strong>";
+                content += "<br>" + features[id].properties["PublicInformation"] +"</p>";
+                content += "<p><a onClick='$(\"#propertytable\").toggle();' class='toggle'>Laat details zien</a></p>";
+            } else {
+                content += "<h2>CORA-project</h2>";
+                content += "<i>" + features[id].properties["LOCATIEWERKZAAMHEDEN"] + "</i>";
+                content += "<p><strong>Van " + features[id].start.toLocaleDateString() + " t/m " +  features[id].end.toLocaleDateString() + "</strong>";
+                content += "<br>" + features[id].properties["SOORTWERKZAAMHEDEN"] +"</p>";
+                content += "<p><a onClick='$(\"#propertytable\").toggle();' class='toggle'>Laat details zien</a></p>";
+            }
+            content += "<table id='propertytable' style='display: none'>";
+            for (var j in p) {
+                content += "<tr><td>" + j + "</td><td>" + p[j] + "</td></tr>";
+            }
+            content += "</table>"; 
+            $("#info").show();
+            $("#details").html(content);
+        }
+        
+        function loadCORA(data){
+            for(i in data["features"]){
+                CORA.push(data["features"][i]);
+            }
+            
+            for(i in CORA){
+                var id = "CORA-"+i;
+                var startStr = CORA[i].properties["STARTDATUM"];
+                var endStr = CORA[i].properties["EINDDATUM"];
+                var start = new Date(startStr.substr(0,4),parseInt(startStr.substr(4,2)) - 1,startStr.substr(6,2),5,0,0);
+                var end = new Date(endStr.substr(0,4), parseInt(endStr.substr(4,2))-1,endStr.substr(6,2),20,0,0);
+                addToFeatures(CORA[i], "CORA", CORAStyle,id, start, end)
+            }
+            
+            CORAloaded = true;
+            if(MOORloaded){
+                initElements();
+                setElements();
+            }
+        }
+        
+        function loadMOOR(data){
+            for(i in data["features"]){
+                MOOR.push(data["features"][i]);
+            }
+            
+            for(i in MOOR){
+                var id = "MOOR-"+i;
+                var startStr = MOOR[i].properties["StartDate"];
+                var endStr = MOOR[i].properties["CompletedDate"];
+                var start = new Date(startStr);
+                var end = new Date(endStr);
+                addToFeatures(MOOR[i], "MOOR", MOORStyle,id, start, end)
+            }
+            MOORloaded = true;
+            if(CORAloaded){
+                initElements();
+                setElements();
+            }            
+        }
+        
+        function initElements(){
+            //Reset minDate and endDate, to focus
+            minDate = new Date();
+            minDate = new Date(minDate.getFullYear(), minDate.getMonth(),1);
+            maxDate = new Date();
+            maxDate.setDate(maxDate.getDate() + 180);
+            
+            $('#slider').slider({
+                range: true,
+                max: Math.floor((maxDate.getTime() - minDate.getTime()) / 86400000),
+                slide: function(event, ui) {
+                    var startDate = new Date(minDate.getTime());
+                    startDate.setDate(startDate.getDate() + ui.values[0]);
+                    $('#startdate').html($.datepicker.formatDate('dd-mm-yy', startDate));
+                    var endDate = new Date(minDate.getTime());
+                    endDate.setDate(endDate.getDate() + ui.values[1]);
+                    $('#enddate').html($.datepicker.formatDate('dd-mm-yy', endDate));
+                    setElements(startDate, endDate, true);
+                }
+            });
+        }
+        
+        function setElements(start, end, triggeredBySlider){
+            if (start===undefined){
+                start = new Date();
+                startcheck = new Date();
+                end = new Date();
+                start.setDate(start.getDate());
+                startcheck.setDate(start.getDate()-1);
+                end.setDate(end.getDate()+5);
+            }
+            $("#slidermindate").html(minDate.toLocaleDateString());
+            $("#slidermaxdate").html(maxDate.toLocaleDateString());
+            $("#startdate").html(start.toLocaleDateString());
+            $("#enddate").html(end.toLocaleDateString());
+
+            var CORACount = 0, MOORCount = 0;
+            for(i in features){
+                if(features[i].start <= end && features[i].end >= start){
+                    if(features[i].type == "MOOR") MOORCount++;
+                    if(features[i].type == "CORA") CORACount++;
+                    for(e in features[i].elements){
+                            features[i].elements[e].setMap(map);
+                    }
+                } else {
+                    for(e in features[i].elements){
+                            features[i].elements[e].setMap(null);
+                    }                           
+                }
+            }
+            if(!triggeredBySlider){
+                var startVal = (start.getTime() - minDate.getTime()) / 86400000;
+                var endVal = (end.getTime() - minDate.getTime()) / 86400000;
+                var values = Array();
+                values.push(startVal);
+                values.push(endVal);
+                $("#slider").slider('values',values);
+            }
+            
+            $("#coracount").html(CORACount);
+            $("#moorcount").html(MOORCount);
+
+        }
+        
+        function showPeriod(type){
+            if(type == "today"){
+                start = new Date();
+                end = new Date();
+                setElements(start,end,false);
+            } else if(type == "5days"){
+                start = new Date();
+                end = new Date();
+                end.setDate(end.getDate() + 5);
+                setElements(start,end,false);
+            } else if(type == "tomorrow"){
+                start = new Date();
+                end = new Date();
+                end.setDate(end.getDate() + 1);
+                setElements(end,end,false);
+            } else if(type == "month"){
+                start = new Date();
+                start = new Date(start.getFullYear(), start.getMonth(), 1);
+                end = new Date(start.getFullYear(), start.getMonth()+1, 0);
+                setElements(start,end,false);
+            }
+            
+        }
+
+        jQuery(document).ready(function(){
+            $.getJSON("ProxyCora.php", loadCORA, CORAStyle);
+            $.getJSON("ProxyMoor.php", loadMOOR, MOORStyle);
+        });
+    </script>
+</head>
+<body onload="init();">
+    <div id="map"></div>
+    <div id='info'>
+        <div id='details'>
+        </div>
+    </div>
+    <div id='timeline'>
+        <h2>CORA & MOOR werkzaamheden</h2>Gebruik onderstaande balk voor het selecteren van een periode of kies:  
+            <a href='#' onClick='showPeriod("today");'>Vandaag</a>, 
+            <a href='#' onClick='showPeriod("tomorrow");'>Morgen</a>, 
+            <a href='#' onClick='showPeriod("5days");'>Komende 5 dagen</a>, 
+            <a href='#' onClick='showPeriod("month");'>Deze maand</a>            
+        <table width='100%'>
+            <tr>
+                <td style='padding-left: 10px; width: 60px' id='slidermindate'></td>
+                <td><div id='slider'></div></td>
+                <td style='padding-right: 20px; width: 60px' id='slidermaxdate'></td>
+            </tr>
+            <tr>   
+                <td></td>
+                <td><center><strong>Geselecteerde periode: </strong><span id='startdate'></span> t/m <span id='enddate'></span> (<span id='coracount'></span> CORA-projecten en <span id='moorcount'></span> MOOR-opbrekingen)</center></td>
+                <td></td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>

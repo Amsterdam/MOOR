@@ -102,12 +102,13 @@ $startdate = date("Y-m-01");
 $enddate = date("Y-m-d", strtotime(date("Y-m-d 00:00:00") . ' + 90 day'));
 
 $moor->getIdsByDate($startdate, $enddate);
+
 $moor->getRoadworks();
 
-$f = fopen("data/MoorRoadworks.json");
+$f = fopen("../data/MoorRoadworks.geojson","w");
 fwrite($f, $moor->getJSON());
 fclose($f);
 
 $AODS = new AODS();
-$AODS->upload("data/MoorRoadworks.json");
+$AODS->upload("../data/MoorRoadworks.geojson");
 ?>
