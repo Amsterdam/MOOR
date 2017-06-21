@@ -21,7 +21,7 @@ include(dirname(__FILE__) ."/settings.php");
                 );
             $json["features"] = Array();            
             
-            $this->client = new SoapClient("http://miws.gemeenten.opbrekingen.nl/v2012.7.0/RoadworkService.svc?wsdl");
+            $this->client = new SoapClient("http://dd.opbrekingen.nl/v2012.7.0/RoadworkService.svc?wsdl");
             $this->batchsize = 500;
         }
         
@@ -95,15 +95,37 @@ include(dirname(__FILE__) ."/settings.php");
         }
     }
     
-$moor = new MoorConnect(MOOR_LICENSEKEY);
 
-$startdate = date("2015-04-01");
-$enddate = date("2015-06-30");
+error_reporting(E_ALL);
+for($year = 2010; $year <= 2016; $year++){
+    for($q = 1; $q <= 4; $q++){
+        
+        set_time_limit(600);
+        if($q == 1){
+            $startdate = date($year ."-01-01");
+            $enddate = date($year ."-03-31");
+        } elseif($q == 2){
+            $startdate = date($year ."-04-01");
+            $enddate = date($year ."-06-30");
+        } elseif($q == 3){
+            $startdate = date($year ."-07-01");
+            $enddate = date($year ."-09-30");
+        } elseif($q == 4){
+            $startdate = date($year ."-10-01");
+            $enddate = date($year ."-12-31");
+        } else {
+            exit("Geef kwartaal op");
+        }
 
-$moor->getIdsByDate($startdate, $enddate);
-$moor->getRoadworks();
-    
-$f = fopen("data/moor-2015Q2.json","w");
-fwrite($f, $moor->getJSON());
-fclose($f);
+        $moor = new MoorConnect(MOOR_LICENSEKEY);
+
+        $moor->getIdsByDate($startdate, $enddate);
+        $moor->getRoadworks();
+            
+        $f = fopen("../data/moor-". $year ."Q" . $q .".json","w");
+        fwrite($f, $moor->getJSON());
+        fclose($f);
+        
+    }
+}
 ?>

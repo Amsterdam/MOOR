@@ -22,7 +22,7 @@ include("../../AODS/AODS.php");
                 );
             $json["features"] = Array();            
             
-            $this->client = new SoapClient("http://miws.gemeenten.opbrekingen.nl/v2012.7.0/RoadworkService.svc?wsdl");
+            $this->client = new SoapClient("http://dd.opbrekingen.nl/v2012.7.0/RoadworkService.svc?wsdl");
             $this->batchsize = 500;
         }
         
